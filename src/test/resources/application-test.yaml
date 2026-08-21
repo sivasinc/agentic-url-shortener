@@ -1,0 +1,46 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:agentic_software_engineer_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+agentic:
+  model:
+    provider: deterministic
+    base-url: http://localhost
+    api-key:
+    model: deterministic
+    timeout: PT5S
+    max-output-tokens: 8000
+
+  workspace:
+    root: ${java.io.tmpdir}/agentic-software-engineer-tests/workspaces
+
+  repository:
+    allowed-root: ${java.io.tmpdir}/agentic-software-engineer-tests/repositories
+    max-files: 2000
+    max-file-size-bytes: 1048576
+    max-context-characters: 200000
+
+  execution:
+    max-attempts: 2
+    command-timeout: PT30S
+    max-output-characters: 100000
+    max-patch-files: 30
+    max-patch-bytes: 524288
