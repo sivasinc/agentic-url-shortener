@@ -24,7 +24,7 @@ public class EngineeringWorkflowController {
     private final AgenticWorkflowService workflowService;
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.ACCEPTED)
     public EngineeringWorkflowResponse create(
             @Valid
             @RequestBody

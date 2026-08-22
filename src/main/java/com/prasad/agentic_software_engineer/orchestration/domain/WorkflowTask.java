@@ -99,7 +99,8 @@ public class WorkflowTask {
             String reason,
             Instant completedAt
     ) {
-        if (status != TaskStatus.PENDING) {
+        if (status != TaskStatus.PENDING &&
+                status != TaskStatus.RUNNING) {
             return;
         }
 

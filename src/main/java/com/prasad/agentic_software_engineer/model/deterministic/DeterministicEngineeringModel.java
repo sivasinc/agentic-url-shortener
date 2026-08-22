@@ -39,7 +39,8 @@ public class DeterministicEngineeringModel
                 context.rawRequirement().trim();
 
         boolean ambiguous =
-                isAmbiguous(requirement);
+                context.clarificationHistory().isEmpty() &&
+                        isAmbiguous(requirement);
 
         List<String> ambiguities = ambiguous
                 ? List.of(
@@ -57,8 +58,17 @@ public class DeterministicEngineeringModel
                 "The final source diff is reviewable"
         );
 
+        String normalizedRequirement =
+                context.clarificationHistory().isEmpty()
+                        ? requirement
+                        : requirement + " Clarifications: " +
+                        String.join(
+                                "; ",
+                                context.clarificationHistory()
+                        );
+
         return new RequirementAnalysis(
-                requirement,
+                normalizedRequirement,
                 criteria,
                 ambiguities,
                 List.of(

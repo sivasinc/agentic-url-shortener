@@ -2,6 +2,7 @@ package com.prasad.agentic_software_engineer.common.error;
 
 import com.prasad.agentic_software_engineer.model.ModelInvocationException;
 import com.prasad.agentic_software_engineer.orchestration.exception.WorkflowNotFoundException;
+import com.prasad.agentic_software_engineer.orchestration.exception.InvalidWorkflowTransitionException;
 import com.prasad.agentic_software_engineer.patch.PatchValidationException;
 import com.prasad.agentic_software_engineer.workspace.WorkspaceException;
 import org.springframework.http.HttpStatus;
@@ -52,6 +53,18 @@ public class ApiExceptionHandler {
                 "Engineering model failed",
                 exception.getMessage(),
                 "model-invocation-failed"
+        );
+    }
+
+    @ExceptionHandler(InvalidWorkflowTransitionException.class)
+    ProblemDetail invalidTransition(
+            InvalidWorkflowTransitionException exception
+    ) {
+        return problem(
+                HttpStatus.CONFLICT,
+                "Invalid workflow transition",
+                exception.getMessage(),
+                "invalid-workflow-transition"
         );
     }
 

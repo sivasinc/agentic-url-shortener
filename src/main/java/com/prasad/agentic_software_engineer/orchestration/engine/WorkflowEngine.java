@@ -178,6 +178,15 @@ public class WorkflowEngine implements AutoCloseable {
             TaskExecutionResult result =
                     handler.execute(workflow, task);
 
+            if (workflow.getStatus() ==
+                    WorkflowStatus.SAFE_STOPPED) {
+                task.cancel(
+                        "Workflow was safely stopped",
+                        clock.instant()
+                );
+                return;
+            }
+
             Instant outputTime = clock.instant();
 
             result.outputs().forEach(
@@ -204,10 +213,18 @@ public class WorkflowEngine implements AutoCloseable {
 
             task.succeed(clock.instant());
         } catch (Exception exception) {
-            task.fail(
-                    safeFailureMessage(exception),
-                    clock.instant()
-            );
+            if (workflow.getStatus() ==
+                    WorkflowStatus.SAFE_STOPPED) {
+                task.cancel(
+                        "Workflow was safely stopped",
+                        clock.instant()
+                );
+            } else {
+                task.fail(
+                        safeFailureMessage(exception),
+                        clock.instant()
+                );
+            }
         }
     }
 

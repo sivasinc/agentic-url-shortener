@@ -7,5 +7,6 @@ public enum WorkflowStatus {
     AWAITING_APPROVAL,
     COMPLETED,
     FAILED,
+    REJECTED,
     SAFE_STOPPED
 }

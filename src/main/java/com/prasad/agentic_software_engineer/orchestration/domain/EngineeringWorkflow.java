@@ -135,6 +135,52 @@ public class EngineeringWorkflow {
         this.status = WorkflowStatus.AWAITING_APPROVAL;
     }
 
+    public synchronized void prepareRevision() {
+        if (status != WorkflowStatus.AWAITING_CLARIFICATION) {
+            throw new IllegalStateException(
+                    "Only a workflow awaiting clarification can be revised"
+            );
+        }
+
+        revision++;
+        tasks.clear();
+        context.clear();
+        status = WorkflowStatus.CREATED;
+        startedAt = null;
+        completedAt = null;
+        failureMessage = null;
+    }
+
+    public synchronized void resumeAfterApproval() {
+        if (status != WorkflowStatus.AWAITING_APPROVAL) {
+            throw new IllegalStateException(
+                    "Only a workflow awaiting approval can resume"
+            );
+        }
+
+        status = WorkflowStatus.RUNNING;
+    }
+
+    public synchronized void reject(
+            String reason,
+            Instant rejectedAt
+    ) {
+        if (status != WorkflowStatus.AWAITING_APPROVAL) {
+            throw new IllegalStateException(
+                    "Only a workflow awaiting approval can be rejected"
+            );
+        }
+
+        tasks.values()
+                .stream()
+                .filter(task -> !task.isSucceeded())
+                .forEach(task -> task.cancel(reason, rejectedAt));
+
+        status = WorkflowStatus.REJECTED;
+        failureMessage = requireText(reason);
+        completedAt = Objects.requireNonNull(rejectedAt);
+    }
+
     public synchronized void complete(Instant completedAt) {
         if (status != WorkflowStatus.RUNNING) {
             throw new IllegalStateException(
@@ -176,7 +222,6 @@ public class EngineeringWorkflow {
 
         tasks.values()
                 .stream()
-                .filter(WorkflowTask::isPending)
                 .forEach(task -> task.cancel(reason, stoppedAt));
 
         this.status = WorkflowStatus.SAFE_STOPPED;
@@ -187,6 +232,7 @@ public class EngineeringWorkflow {
     public synchronized boolean isTerminal() {
         return status == WorkflowStatus.COMPLETED ||
                 status == WorkflowStatus.FAILED ||
+                status == WorkflowStatus.REJECTED ||
                 status == WorkflowStatus.SAFE_STOPPED;
     }
 

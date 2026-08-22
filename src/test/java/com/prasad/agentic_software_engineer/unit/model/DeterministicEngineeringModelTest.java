@@ -62,6 +62,23 @@ class DeterministicEngineeringModelTest {
     }
 
     @Test
+    void clarificationResolvesAmbiguousRequirement() {
+        RequirementAnalysis analysis = model.analyzeRequirement(
+                new RequirementContext(
+                        ScenarioType.AMBIGUOUS,
+                        "Improve URL analytics",
+                        List.of(
+                                "Return total and UTC daily redirect counts"
+                        )
+                )
+        );
+
+        assertThat(analysis.requiresClarification()).isFalse();
+        assertThat(analysis.normalizedRequirement())
+                .contains("UTC daily redirect counts");
+    }
+
+    @Test
     void generatesPlanSourceAndTestChanges() {
         RequirementAnalysis requirement =
                 model.analyzeRequirement(

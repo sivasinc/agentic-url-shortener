@@ -9,6 +9,7 @@ import com.prasad.agentic_software_engineer.model.ValidationFailure;
 import com.prasad.agentic_software_engineer.orchestration.domain.EngineeringWorkflow;
 import com.prasad.agentic_software_engineer.orchestration.domain.TaskType;
 import com.prasad.agentic_software_engineer.orchestration.domain.WorkflowTask;
+import com.prasad.agentic_software_engineer.orchestration.domain.WorkflowStatus;
 import com.prasad.agentic_software_engineer.patch.AppliedPatch;
 import com.prasad.agentic_software_engineer.patch.PatchService;
 import com.prasad.agentic_software_engineer.validation.BuildValidationResult;
@@ -92,10 +93,14 @@ public class ValidationTaskHandler
         for (int attempt = 1;
              attempt <= properties.maxAttempts();
              attempt++) {
+            ensureNotSafelyStopped(workflow, workspace);
+
             lastResult = mavenBuildTool.validate(
                     workspace,
                     attempt
             );
+
+            ensureNotSafelyStopped(workflow, workspace);
 
             if (lastResult.successful()) {
                 return new TaskExecutionResult(
@@ -125,6 +130,8 @@ public class ValidationTaskHandler
                             failure,
                             repository
                     );
+
+            ensureNotSafelyStopped(workflow, workspace);
 
             workspaceService.rollback(workspace);
 
@@ -161,6 +168,20 @@ public class ValidationTaskHandler
                         properties.maxAttempts() +
                         " attempts; workspace was restored: " +
                         detail
+        );
+    }
+
+    private void ensureNotSafelyStopped(
+            EngineeringWorkflow workflow,
+            EngineeringWorkspace workspace
+    ) {
+        if (workflow.getStatus() != WorkflowStatus.SAFE_STOPPED) {
+            return;
+        }
+
+        workspaceService.rollback(workspace);
+        throw new IllegalStateException(
+                "Validation interrupted by workflow safe stop"
         );
     }
 

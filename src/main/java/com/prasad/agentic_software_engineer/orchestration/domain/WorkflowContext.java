@@ -57,4 +57,8 @@ public class WorkflowContext {
                 new LinkedHashMap<>(entries)
         );
     }
+
+    public void clear() {
+        entries.clear();
+    }
 }

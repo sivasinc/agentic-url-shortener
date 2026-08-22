@@ -15,7 +15,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -31,6 +34,9 @@ public class MavenBuildTool {
             );
 
     private final AgentExecutionProperties properties;
+
+    private final ConcurrentMap<UUID, Process> activeProcesses =
+            new ConcurrentHashMap<>();
 
     public BuildValidationResult validate(
             EngineeringWorkspace workspace,
@@ -64,6 +70,11 @@ public class MavenBuildTool {
                     .directory(repository.toFile())
                     .redirectErrorStream(true)
                     .start();
+
+            activeProcesses.put(
+                    workspace.workflowId(),
+                    process
+            );
 
             Process activeProcess = process;
 
@@ -137,7 +148,29 @@ public class MavenBuildTool {
                     "Unable to execute Maven validation",
                     exception
             );
+        } finally {
+            if (process != null) {
+                activeProcesses.remove(
+                        workspace.workflowId(),
+                        process
+                );
+            }
         }
+    }
+
+    public boolean cancel(UUID workflowId) {
+        if (workflowId == null) {
+            return false;
+        }
+
+        Process process = activeProcesses.remove(workflowId);
+
+        if (process == null) {
+            return false;
+        }
+
+        terminate(process);
+        return true;
     }
 
     private List<String> resolveCommand(

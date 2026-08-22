@@ -35,6 +35,18 @@ public final class AgenticContextKeys {
     public static final String REPAIR_PATCH =
             "patch.repair";
 
+    public static final String REPOSITORY_PATH =
+            "repository.path";
+
+    public static final String CLARIFICATION_DECISION =
+            "governance.clarification";
+
+    public static final String RELEASE_DECISION =
+            "governance.release";
+
+    public static final String SAFE_STOP_DECISION =
+            "governance.safe-stop";
+
     private AgenticContextKeys() {
     }
 }
