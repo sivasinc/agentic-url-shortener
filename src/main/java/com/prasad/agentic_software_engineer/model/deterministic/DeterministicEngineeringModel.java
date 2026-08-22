@@ -210,7 +210,7 @@ public class DeterministicEngineeringModel
             RepositoryContext repository
     ) {
         return new PatchProposal(
-                "Repair the generated implementation after validation failure",
+                "Repair the generated implementation and tests",
                 List.of(
                         new ProposedFileChange(
                                 FileChangeType.CREATE,
@@ -218,25 +218,48 @@ public class DeterministicEngineeringModel
                                 null,
                                 """
                                 package generated;
-
+    
                                 public final class AgentGeneratedChange {
-
+    
                                     private AgentGeneratedChange() {
                                     }
-
+    
                                     public static String status() {
                                         return "implemented";
                                     }
                                 }
                                 """,
-                                "Produces corrected compilable implementation"
+                                "Creates corrected compilable production code"
+                        ),
+                        new ProposedFileChange(
+                                FileChangeType.CREATE,
+                                "src/test/java/generated/AgentGeneratedChangeTest.java",
+                                null,
+                                """
+                                package generated;
+    
+                                import org.junit.jupiter.api.Test;
+    
+                                import static org.assertj.core.api.Assertions.assertThat;
+    
+                                class AgentGeneratedChangeTest {
+    
+                                    @Test
+                                    void reportsImplementedStatus() {
+                                        assertThat(
+                                                AgentGeneratedChange.status()
+                                        ).isEqualTo("implemented");
+                                    }
+                                }
+                                """,
+                                "Restores the complete test operation after rollback"
                         )
                 ),
                 List.of(
-                        "The validation failure is related to generated code"
+                        "The fixture repository uses Maven, JUnit and AssertJ"
                 ),
                 List.of(
-                        "A different failure may require human review"
+                        "A non-fixture failure may require model or human review"
                 )
         );
     }

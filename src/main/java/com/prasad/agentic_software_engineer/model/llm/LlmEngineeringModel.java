@@ -139,10 +139,16 @@ public class LlmEngineeringModel
     ) {
         return client.generate(
                 SAFETY_INSTRUCTIONS + """
-                        Diagnose the supplied validation failure and generate a
-                        corrected patch. The corrected patch must materially
-                        address the failure rather than repeat the same output.
-                        """,
+        Diagnose the supplied validation failure and generate a
+        complete corrected patch.
+
+        The returned patch must contain every production and test
+        operation required after restoring the workspace baseline.
+        Do not return only a partial edit.
+
+        The corrected patch must materially address the failure
+        rather than repeat the same broken output.
+        """,
                 json(
                         new GenerationInput(
                                 plan,

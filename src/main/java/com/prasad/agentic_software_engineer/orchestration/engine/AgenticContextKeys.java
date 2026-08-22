@@ -29,6 +29,12 @@ public final class AgenticContextKeys {
     public static final String APPLIED_PATCH =
             "patch.applied";
 
+    public static final String VALIDATION_RESULT =
+            "validation.result";
+
+    public static final String REPAIR_PATCH =
+            "patch.repair";
+
     private AgenticContextKeys() {
     }
 }

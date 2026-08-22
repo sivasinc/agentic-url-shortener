@@ -165,12 +165,22 @@ public class AgenticWorkflowService {
                 )
         );
 
+        WorkflowTask validation = task(
+                "Compile and validate generated change",
+                TaskType.VALIDATION,
+                Set.of(patch.getId()),
+                GateDefinition.contextKeys(
+                        AgenticContextKeys.VALIDATION_RESULT
+                )
+        );
+
         workflow.addTask(requirement);
         workflow.addTask(repository);
         workflow.addTask(architecture);
         workflow.addTask(implementation);
         workflow.addTask(tests);
         workflow.addTask(patch);
+        workflow.addTask(validation);
     }
 
     private WorkflowTask task(
