@@ -143,6 +143,14 @@ public class DeterministicEngineeringModel
             EngineeringPlan plan,
             RepositoryContext repository
     ) {
+        if (repository.requirement()
+                .normalizedRequirement()
+                .toLowerCase(Locale.ROOT)
+                .contains("demonstrate repair")) {
+            return analyticsPatchFactory
+                    .intentionallyFailingImplementation();
+        }
+
         return analyticsPatchFactory
                 .implementation();
     }

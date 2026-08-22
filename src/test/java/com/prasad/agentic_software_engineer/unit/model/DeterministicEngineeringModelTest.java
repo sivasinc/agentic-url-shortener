@@ -139,6 +139,34 @@ class DeterministicEngineeringModelTest {
                 );
     }
 
+    @Test
+    void createsControlledFailureForRepairDemonstration() {
+        RequirementAnalysis requirement = model.analyzeRequirement(
+                new RequirementContext(
+                        ScenarioType.BROWNFIELD,
+                        "Add redirect analytics and demonstrate repair",
+                        List.of()
+                )
+        );
+        RepositoryContext repository = new RepositoryContext(
+                requirement,
+                assessment(),
+                Map.of()
+        );
+
+        PatchProposal proposal = model.generateImplementation(
+                model.createPlan(repository),
+                repository
+        );
+
+        assertThat(proposal.changes())
+                .anyMatch(change ->
+                        change.content().contains(
+                                "unresolvedRepairDemoSymbol"
+                        )
+                );
+    }
+
     private RepositoryAssessment assessment() {
         return new RepositoryAssessment(
                 1,

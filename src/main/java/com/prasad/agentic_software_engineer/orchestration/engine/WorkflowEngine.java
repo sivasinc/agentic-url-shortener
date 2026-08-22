@@ -1,5 +1,7 @@
 package com.prasad.agentic_software_engineer.orchestration.engine;
 
+import com.prasad.agentic_software_engineer.audit.AuditEventType;
+import com.prasad.agentic_software_engineer.audit.WorkflowAuditService;
 import com.prasad.agentic_software_engineer.orchestration.domain.EngineeringWorkflow;
 import com.prasad.agentic_software_engineer.orchestration.domain.GateType;
 import com.prasad.agentic_software_engineer.orchestration.domain.WorkflowStatus;
@@ -24,6 +26,7 @@ public class WorkflowEngine implements AutoCloseable {
     private final WorkflowGateEvaluator gateEvaluator;
     private final WorkflowTaskHandlerRegistry handlerRegistry;
     private final WorkflowRepository workflowRepository;
+    private final WorkflowAuditService auditService;
     private final Clock clock;
 
     private final ExecutorService executor =
@@ -34,12 +37,14 @@ public class WorkflowEngine implements AutoCloseable {
             WorkflowGateEvaluator gateEvaluator,
             WorkflowTaskHandlerRegistry handlerRegistry,
             WorkflowRepository workflowRepository,
+            WorkflowAuditService auditService,
             Clock clock
     ) {
         this.graphValidator = graphValidator;
         this.gateEvaluator = gateEvaluator;
         this.handlerRegistry = handlerRegistry;
         this.workflowRepository = workflowRepository;
+        this.auditService = auditService;
         this.clock = clock;
     }
 
@@ -51,6 +56,13 @@ public class WorkflowEngine implements AutoCloseable {
         if (workflow.getStatus() ==
                 WorkflowStatus.CREATED) {
             workflow.start(clock.instant());
+            auditService.record(
+                    workflow,
+                    AuditEventType.WORKFLOW_STARTED,
+                    "ORCHESTRATOR",
+                    "Workflow execution started",
+                    clock.instant()
+            );
         }
 
         workflowRepository.save(workflow);
@@ -63,6 +75,13 @@ public class WorkflowEngine implements AutoCloseable {
             if (pendingTasks.isEmpty()) {
                 if (workflow.allTasksSucceeded()) {
                     workflow.complete(clock.instant());
+                    auditService.record(
+                            workflow,
+                            AuditEventType.WORKFLOW_COMPLETED,
+                            "ORCHESTRATOR",
+                            "All workflow tasks completed",
+                            clock.instant()
+                    );
                     workflowRepository.save(workflow);
                 }
 
@@ -95,10 +114,24 @@ public class WorkflowEngine implements AutoCloseable {
                         pendingTasks
                 )) {
                     workflow.awaitApproval();
+                    auditService.record(
+                            workflow,
+                            AuditEventType.APPROVAL_REQUIRED,
+                            "POLICY_ENGINE",
+                            "Release-readiness approval is required",
+                            clock.instant()
+                    );
                 } else {
                     workflow.fail(
                             "No executable tasks remain; " +
                                     "the graph is blocked by unsatisfied gates",
+                            clock.instant()
+                    );
+                    auditService.record(
+                            workflow,
+                            AuditEventType.WORKFLOW_FAILED,
+                            "ORCHESTRATOR",
+                            workflow.getFailureMessage(),
                             clock.instant()
                     );
                 }
@@ -125,6 +158,14 @@ public class WorkflowEngine implements AutoCloseable {
                                 failedTask.getName() +
                                 " - " +
                                 failedTask.getFailureMessage(),
+                        clock.instant()
+                );
+
+                auditService.record(
+                        workflow,
+                        AuditEventType.WORKFLOW_FAILED,
+                        "ORCHESTRATOR",
+                        workflow.getFailureMessage(),
                         clock.instant()
                 );
 
@@ -170,6 +211,8 @@ public class WorkflowEngine implements AutoCloseable {
         task.start(clock.instant());
 
         try {
+            auditService.taskStarted(workflow, task, clock.instant());
+
             WorkflowTaskHandler handler =
                     handlerRegistry.require(
                             task.getType()
@@ -184,6 +227,7 @@ public class WorkflowEngine implements AutoCloseable {
                         "Workflow was safely stopped",
                         clock.instant()
                 );
+
                 return;
             }
 
@@ -211,7 +255,24 @@ public class WorkflowEngine implements AutoCloseable {
                 );
             }
 
+            auditService.taskSucceeded(
+                    workflow,
+                    task,
+                    result.outputs(),
+                    clock.instant()
+            );
             task.succeed(clock.instant());
+
+            if (workflow.getStatus() ==
+                    WorkflowStatus.AWAITING_CLARIFICATION) {
+                auditService.record(
+                        workflow,
+                        AuditEventType.CLARIFICATION_REQUIRED,
+                        "REQUIREMENT_AGENT",
+                        "Requirement analysis requires human clarification",
+                        clock.instant()
+                );
+            }
         } catch (Exception exception) {
             if (workflow.getStatus() ==
                     WorkflowStatus.SAFE_STOPPED) {
@@ -221,6 +282,12 @@ public class WorkflowEngine implements AutoCloseable {
                 );
             } else {
                 task.fail(
+                        safeFailureMessage(exception),
+                        clock.instant()
+                );
+                auditService.taskFailed(
+                        workflow,
+                        task,
                         safeFailureMessage(exception),
                         clock.instant()
                 );

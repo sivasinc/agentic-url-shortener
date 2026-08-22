@@ -93,6 +93,42 @@ public class DeterministicAnalyticsPatchFactory {
         );
     }
 
+    public PatchProposal intentionallyFailingImplementation() {
+        PatchProposal complete = implementation();
+
+        List<ProposedFileChange> changes = complete.changes()
+                .stream()
+                .map(change -> {
+                    if (!change.path().endsWith(
+                            "RedirectAnalyticsService.java"
+                    )) {
+                        return change;
+                    }
+
+                    return new ProposedFileChange(
+                            change.type(),
+                            change.path(),
+                            change.expectedSha256(),
+                            change.content().replace(
+                                    "return new RedirectAnalyticsResponse(",
+                                    "return unresolvedRepairDemoSymbol("
+                            ),
+                            "Intentionally introduces a compilation failure " +
+                                    "to demonstrate bounded repair"
+                    );
+                })
+                .toList();
+
+        return new PatchProposal(
+                "Introduce a controlled compilation failure for repair demonstration",
+                changes,
+                complete.assumptions(),
+                List.of(
+                        "The first validation attempt is expected to fail by design"
+                )
+        );
+    }
+
     public PatchProposal completeRepair() {
         PatchProposal implementation =
                 implementation();

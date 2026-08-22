@@ -9,7 +9,7 @@ gates.
 
 ## Current status
 
-Implemented through Commit 8:
+Implemented through Commit 9:
 
 - Stateful dependency-graph execution with entry and exit gates
 - Parallel execution of independent tasks
@@ -26,6 +26,10 @@ Implemented through Commit 8:
 - Release-readiness approval and rejection gates
 - Safe stop with active Maven-process cancellation and workspace rollback
 - Domain and model unit tests for governance transitions
+- PostgreSQL-backed audit lineage for workflows, agents, tools and decisions
+- Sanitized JSON evidence artifacts for every structured agent output
+- Prometheus metrics for agent calls, task duration, validation and repair
+- A deterministic failure scenario proving validation-driven repair
 
 The deterministic provider makes the complete demonstration reproducible and
 free in local development and CI. The OpenAI provider exercises the same agent
@@ -106,6 +110,7 @@ The deterministic orchestrator owns the controls around model reasoning:
 ```text
 src/main/java/com/prasad/agentic_software_engineer
 |-- agent/                 logical requirement, planning, coding, test and repair agents
+|-- audit/                 durable event lineage, redaction and evidence storage
 |-- model/                 provider-neutral model contracts and implementations
 |-- orchestration/         workflow DAG, engine, gates, governance and API
 |-- patch/                 proposal validation, application and diff evidence
@@ -184,7 +189,7 @@ Workflow creation is asynchronous and returns `202 Accepted`:
 $request = @{
     scenarioType = "BROWNFIELD"
     requirement = "Add total and daily redirect analytics"
-    repositoryPath = ".\scenario-repositories\url-shortener"
+    repositoryPath = "url-shortener"
 } | ConvertTo-Json
 
 $workflow = Invoke-RestMethod `
@@ -259,7 +264,7 @@ $ambiguous = Invoke-RestMethod `
     -Body (@{
         scenarioType = "BROWNFIELD"
         requirement = "Improve analytics"
-        repositoryPath = ".\scenario-repositories\url-shortener"
+        repositoryPath = "url-shortener"
     } | ConvertTo-Json)
 ```
 
@@ -302,6 +307,84 @@ The workflow becomes `SAFE_STOPPED`, pending/running tasks are cancelled, an
 active Maven child process is terminated, and the current workspace is restored
 to its initial snapshot. Repeating a terminal transition returns `409 Conflict`.
 
+## Audit lineage and evidence
+
+Every workflow transition, logical agent invocation, controlled patch/build
+operation, validation attempt, repair and human decision is stored in
+PostgreSQL with workflow ID and revision lineage:
+
+```powershell
+$events = Invoke-RestMethod `
+    -Uri "http://localhost:8080/api/v1/engineering-workflows/$($workflow.id)/audit-events"
+
+$events |
+    Select-Object revision, type, actor, taskType, detail, evidenceArtifact, occurredAt |
+    Format-Table -AutoSize
+```
+
+Retrieve the sanitized structured agent outputs:
+
+```powershell
+$evidence = Invoke-RestMethod `
+    -Uri "http://localhost:8080/api/v1/engineering-workflows/$($workflow.id)/evidence"
+
+$evidence | Select-Object eventId, artifact, mediaType
+$evidence[0].content
+```
+
+Evidence is written beneath
+`agent-workspaces/<workflow-id>/revision-<n>/artifacts/audit` and stored with
+the durable audit event. Configured API keys, bearer credentials and commonly
+named secret fields are redacted before either copy is persisted.
+
+## Failure-driven repair demonstration
+
+The deterministic provider includes an explicit assessment scenario that makes
+the first generated change fail compilation and then repairs it using the same
+validation-feedback loop used by the OpenAI provider:
+
+```powershell
+$repairDemo = Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://localhost:8080/api/v1/engineering-workflows" `
+    -ContentType "application/json" `
+    -Body (@{
+        scenarioType = "BROWNFIELD"
+        requirement = "Add total and daily redirect analytics and demonstrate repair"
+        repositoryPath = "url-shortener"
+    } | ConvertTo-Json)
+```
+
+Poll until `AWAITING_APPROVAL`, then inspect its audit events. Expected lineage
+includes:
+
+```text
+VALIDATION_ATTEMPT_FAILED
+REPAIR_STARTED
+VALIDATION_ATTEMPT_SUCCEEDED
+APPROVAL_REQUIRED
+```
+
+The phrase `demonstrate repair` is intentionally limited to the deterministic
+assessment provider. In OpenAI mode, repair is triggered naturally by actual
+compiler or test failures and receives the previous patch plus bounded Maven
+failure output.
+
+## Operational metrics
+
+```powershell
+Invoke-WebRequest `
+    -Uri "http://localhost:8080/actuator/prometheus" |
+    Select-Object -ExpandProperty Content |
+    Select-String "agentic_"
+```
+
+The platform exports counters and timers for audit events, workflow outcomes,
+task executions, model invocations, validation attempts, repair attempts and
+workflow/task duration. Metric tags use bounded enums such as provider, agent,
+task and outcome; workflow IDs are deliberately excluded to avoid unbounded
+cardinality.
+
 ## Workflow states
 
 ```text
@@ -342,11 +425,10 @@ URL-shortener fixture behavior. OpenAI tests use a mocked HTTP boundary.
 
 ## Scope and remaining work
 
-Commit 8 deliberately keeps workflows and governance decisions in memory. A
-process restart therefore loses active workflow state, although generated
-workspace evidence remains on disk. Commit 9 adds durable audit lineage,
-operational metrics and packaged demonstration scenarios. Commit 10 adds CI,
-container packaging, coverage enforcement and final documentation.
+Workflow execution state remains in memory, so a process restart cannot resume
+an active workflow. Audit events and sanitized evidence content are durable in
+PostgreSQL, while workspace artifacts remain on disk. Commit 10 adds CI,
+container packaging, coverage enforcement and final architecture documentation.
 
 ## Commit roadmap
 

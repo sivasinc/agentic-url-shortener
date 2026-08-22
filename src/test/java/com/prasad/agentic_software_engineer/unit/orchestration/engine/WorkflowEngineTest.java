@@ -1,5 +1,6 @@
 package com.prasad.agentic_software_engineer.unit.orchestration.engine;
 
+import com.prasad.agentic_software_engineer.audit.WorkflowAuditService;
 import com.prasad.agentic_software_engineer.orchestration.domain.EngineeringWorkflow;
 import com.prasad.agentic_software_engineer.orchestration.domain.GateDefinition;
 import com.prasad.agentic_software_engineer.orchestration.domain.TaskStatus;
@@ -26,6 +27,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class WorkflowEngineTest {
 
@@ -240,6 +242,7 @@ class WorkflowEngineTest {
                 new WorkflowGateEvaluator(),
                 new WorkflowTaskHandlerRegistry(handlers),
                 new InMemoryWorkflowRepository(),
+                mock(WorkflowAuditService.class),
                 clock
         );
     }

@@ -1,5 +1,7 @@
 package com.prasad.agentic_software_engineer.orchestration.service;
 
+import com.prasad.agentic_software_engineer.audit.AuditEventType;
+import com.prasad.agentic_software_engineer.audit.WorkflowAuditService;
 import com.prasad.agentic_software_engineer.config.AgentModelProperties;
 import com.prasad.agentic_software_engineer.model.EngineeringPlan;
 import com.prasad.agentic_software_engineer.model.RequirementAnalysis;
@@ -53,6 +55,7 @@ public class AgenticWorkflowService
     private final WorkflowRepository workflowRepository;
     private final WorkflowGateEvaluator gateEvaluator;
     private final MavenBuildTool mavenBuildTool;
+    private final WorkflowAuditService auditService;
     private final AgentModelProperties modelProperties;
     private final Clock clock;
 
@@ -99,6 +102,13 @@ public class AgenticWorkflowService
 
         addTasks(workflow);
         workflowRepository.save(workflow);
+        auditService.record(
+                workflow,
+                AuditEventType.WORKFLOW_CREATED,
+                "API_CLIENT",
+                "Engineering workflow created",
+                now
+        );
 
         EngineeringWorkflowResponse response = toResponse(workflow);
         schedule(workflow);
@@ -181,6 +191,13 @@ public class AgenticWorkflowService
             );
             addTasks(workflow);
             workflowRepository.save(workflow);
+            auditService.record(
+                    workflow,
+                    AuditEventType.CLARIFICATION_SUBMITTED,
+                    actor,
+                    "Clarification submitted; workflow revision created",
+                    clock.instant()
+            );
         }
 
         schedule(workflow);
@@ -240,10 +257,24 @@ public class AgenticWorkflowService
                         clock.instant()
                 );
                 workflow.resumeAfterApproval();
+                auditService.record(
+                        workflow,
+                        AuditEventType.RELEASE_APPROVED,
+                        actor,
+                        reason,
+                        clock.instant()
+                );
                 resume = true;
             } else {
                 rollbackCurrentWorkspace(workflow);
                 workflow.reject(reason, clock.instant());
+                auditService.record(
+                        workflow,
+                        AuditEventType.RELEASE_REJECTED,
+                        actor,
+                        reason,
+                        clock.instant()
+                );
             }
 
             workflowRepository.save(workflow);
@@ -282,6 +313,13 @@ public class AgenticWorkflowService
                     clock.instant()
             );
             workflow.safeStop(reason, clock.instant());
+            auditService.record(
+                    workflow,
+                    AuditEventType.SAFE_STOPPED,
+                    actor,
+                    reason,
+                    clock.instant()
+            );
             workflowRepository.save(workflow);
         }
 

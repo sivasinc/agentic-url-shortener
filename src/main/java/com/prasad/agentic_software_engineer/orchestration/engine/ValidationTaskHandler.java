@@ -1,6 +1,8 @@
 package com.prasad.agentic_software_engineer.orchestration.engine;
 
 import com.prasad.agentic_software_engineer.agent.repair.RepairAgent;
+import com.prasad.agentic_software_engineer.audit.AuditEventType;
+import com.prasad.agentic_software_engineer.audit.WorkflowAuditService;
 import com.prasad.agentic_software_engineer.config.AgentExecutionProperties;
 import com.prasad.agentic_software_engineer.model.EngineeringPlan;
 import com.prasad.agentic_software_engineer.model.PatchProposal;
@@ -32,6 +34,7 @@ public class ValidationTaskHandler
     private final PatchService patchService;
     private final WorkspaceService workspaceService;
     private final AgentExecutionProperties properties;
+    private final WorkflowAuditService auditService;
 
     @Override
     public TaskType supports() {
@@ -95,9 +98,25 @@ public class ValidationTaskHandler
              attempt++) {
             ensureNotSafelyStopped(workflow, workspace);
 
+            auditService.record(
+                    workflow,
+                    AuditEventType.VALIDATION_ATTEMPT_STARTED,
+                    "VALIDATION_TOOL",
+                    "Maven validation attempt " + attempt + " started",
+                    java.time.Instant.now()
+            );
+
             lastResult = mavenBuildTool.validate(
                     workspace,
                     attempt
+            );
+
+            auditService.validationAttempt(
+                    workflow,
+                    attempt,
+                    lastResult.successful(),
+                    lastResult.logArtifact(),
+                    java.time.Instant.now()
             );
 
             ensureNotSafelyStopped(workflow, workspace);
@@ -122,6 +141,12 @@ public class ValidationTaskHandler
 
             ValidationFailure failure =
                     lastResult.toFailure();
+
+            auditService.repairStarted(
+                    workflow,
+                    attempt + 1,
+                    java.time.Instant.now()
+            );
 
             PatchProposal repairedPatch =
                     repairAgent.repair(
