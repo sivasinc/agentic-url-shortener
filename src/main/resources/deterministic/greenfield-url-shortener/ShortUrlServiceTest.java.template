@@ -1,0 +1,30 @@
+package com.prasad.fixture.greenfield;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.NoSuchElementException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class ShortUrlServiceTest {
+
+    private final ShortUrlService service = new ShortUrlService();
+
+    @Test
+    void createsAndResolvesStableShortCode() {
+        String code = service.create("https://example.com/engineering");
+
+        assertThat(code).hasSize(8);
+        assertThat(service.resolve(code))
+                .isEqualTo("https://example.com/engineering");
+        assertThat(service.create("https://example.com/engineering"))
+                .isEqualTo(code);
+    }
+
+    @Test
+    void rejectsUnknownCode() {
+        assertThatThrownBy(() -> service.resolve("deadbeef"))
+                .isInstanceOf(NoSuchElementException.class);
+    }
+}

@@ -1,0 +1,8 @@
+package com.prasad.fixture.greenfield;
+
+public record ShortUrlResponse(
+        String code,
+        String originalUrl,
+        String shortUrl
+) {
+}

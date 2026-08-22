@@ -13,10 +13,13 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class WorkspaceServiceTest {
 
@@ -135,6 +138,37 @@ class WorkspaceServiceTest {
         )
                 .isInstanceOf(WorkspaceException.class)
                 .hasMessageContaining("already exists");
+    }
+
+    @Test
+    void preservesExecutableWrapperOnPosixFileSystems()
+            throws Exception {
+        assumeTrue(
+                temporaryDirectory.getFileSystem()
+                        .supportedFileAttributeViews()
+                        .contains("posix")
+        );
+
+        Path source = createSourceRepository("executable-wrapper");
+        Path wrapper = source.resolve("mvnw");
+        Files.writeString(wrapper, "#!/bin/sh\nexit 0\n");
+        Files.setPosixFilePermissions(
+                wrapper,
+                Set.of(
+                        PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_WRITE,
+                        PosixFilePermission.OWNER_EXECUTE
+                )
+        );
+
+        EngineeringWorkspace workspace = workspaceService.create(
+                UUID.randomUUID(),
+                1,
+                Path.of("executable-wrapper")
+        );
+
+        assertThat(workspace.repository().resolve("mvnw"))
+                .isExecutable();
     }
 
     private Path createSourceRepository(String name)

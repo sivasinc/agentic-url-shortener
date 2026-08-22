@@ -1,16 +1,15 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: agentic-software-engineer-postgres
     restart: unless-stopped
 
     environment:
       POSTGRES_DB: agentic_software_engineer
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
 
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
 
     volumes:
       - agentic_software_engineer_postgres_data:/var/lib/postgresql/data
@@ -18,11 +17,49 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - pg_isready -U postgres -d agentic_software_engineer
+        - pg_isready -U ${DB_USERNAME:-postgres} -d agentic_software_engineer
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentic-software-engineer:local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/agentic_software_engineer
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      MODEL_PROVIDER: ${MODEL_PROVIDER:-deterministic}
+      MODEL_BASE_URL: ${MODEL_BASE_URL:-https://api.openai.com/v1}
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+      MODEL_NAME: ${MODEL_NAME:-gpt-4.1-mini}
+      AGENT_WORKSPACE_ROOT: /opt/app/agent-workspaces
+      AGENT_REPOSITORY_ROOT: /opt/app/scenario-repositories
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=75.0
+        -XX:+ExitOnOutOfMemoryError
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    volumes:
+      - agentic_software_engineer_workspaces:/opt/app/agent-workspaces
+      - agentic_software_engineer_maven_cache:/home/agent/.m2
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
 volumes:
   agentic_software_engineer_postgres_data:
+  agentic_software_engineer_workspaces:
+  agentic_software_engineer_maven_cache:

@@ -1,5 +1,6 @@
 package com.prasad.agentic_software_engineer.orchestration.dto;
 
+import com.prasad.agentic_software_engineer.documentation.EngineeringOutcomeArtifact;
 import com.prasad.agentic_software_engineer.model.EngineeringPlan;
 import com.prasad.agentic_software_engineer.model.RequirementAnalysis;
 import com.prasad.agentic_software_engineer.orchestration.domain.WorkflowStatus;
@@ -16,6 +17,7 @@ public record EngineeringWorkflowResponse(
         EngineeringPlan engineeringPlan,
         List<String> changedFiles,
         String diff,
+        EngineeringOutcomeArtifact engineeringOutcome,
         List<String> clarificationQuestions,
         List<WorkflowTaskResponse> tasks,
         String failureMessage

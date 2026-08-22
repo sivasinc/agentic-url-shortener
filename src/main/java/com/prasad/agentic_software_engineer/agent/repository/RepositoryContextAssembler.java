@@ -3,6 +3,7 @@ package com.prasad.agentic_software_engineer.agent.repository;
 import com.prasad.agentic_software_engineer.config.AgentRepositoryProperties;
 import com.prasad.agentic_software_engineer.model.RepositoryContext;
 import com.prasad.agentic_software_engineer.model.RequirementAnalysis;
+import com.prasad.agentic_software_engineer.model.ScenarioType;
 import com.prasad.agentic_software_engineer.tool.repository.RepositoryTools;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ public class RepositoryContextAssembler {
 
     public RepositoryContext assemble(
             Path repositoryRoot,
+            ScenarioType scenarioType,
             RequirementAnalysis requirement,
             RepositoryAssessment assessment
     ) {
@@ -72,6 +74,7 @@ public class RepositoryContextAssembler {
         }
 
         return new RepositoryContext(
+                scenarioType,
                 requirement,
                 assessment,
                 relevantFiles

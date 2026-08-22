@@ -32,6 +32,9 @@ public final class AgenticContextKeys {
     public static final String VALIDATION_RESULT =
             "validation.result";
 
+    public static final String ENGINEERING_OUTCOME =
+            "engineering.outcome";
+
     public static final String REPAIR_PATCH =
             "patch.repair";
 

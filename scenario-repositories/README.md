@@ -7,10 +7,13 @@ The platform never modifies these source repositories directly. Each workflow
 creates an isolated copy under `agent-workspaces` before reading or applying
 changes.
 
-Planned scenarios:
+Executable scenarios:
 
-- `greenfield-seed`: minimal project used for new-feature generation
-- `brownfield-url-shortener`: working URL shortener enhanced with analytics
-- `ambiguous-url-shortener`: repository used for clarification and replanning
+- `greenfield-seed`: build-only Maven project into which agents generate a new
+  URL-shortener application and tests.
+- `url-shortener` with `BROWNFIELD`: existing application enhanced with
+  redirect analytics.
+- `url-shortener` with `AMBIGUOUS`: revision 1 stops for clarification and
+  revision 2 replans, generates and validates the clarified change.
 
 Generated build output and workflow workspaces are excluded from Git.

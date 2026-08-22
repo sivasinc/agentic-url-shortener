@@ -8,6 +8,7 @@ import com.prasad.agentic_software_engineer.model.RequirementAnalysis;
 import com.prasad.agentic_software_engineer.model.RequirementContext;
 import com.prasad.agentic_software_engineer.model.ScenarioType;
 import com.prasad.agentic_software_engineer.model.deterministic.DeterministicEngineeringModel;
+import com.prasad.agentic_software_engineer.model.deterministic.DeterministicGreenfieldPatchFactory;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -22,7 +23,8 @@ class DeterministicEngineeringModelTest {
             new DeterministicEngineeringModel(
                     new com.prasad.agentic_software_engineer
                             .model.deterministic
-                            .DeterministicAnalyticsPatchFactory()
+                            .DeterministicAnalyticsPatchFactory(),
+                    new DeterministicGreenfieldPatchFactory()
             );
 
     @Test
@@ -79,6 +81,20 @@ class DeterministicEngineeringModelTest {
     }
 
     @Test
+    void explicitAmbiguousScenarioAlwaysStopsBeforeClarification() {
+        RequirementAnalysis analysis = model.analyzeRequirement(
+                new RequirementContext(
+                        ScenarioType.AMBIGUOUS,
+                        "Add a total redirect count endpoint",
+                        List.of()
+                )
+        );
+
+        assertThat(analysis.requiresClarification()).isTrue();
+        assertThat(analysis.ambiguities()).isNotEmpty();
+    }
+
+    @Test
     void generatesPlanSourceAndTestChanges() {
         RequirementAnalysis requirement =
                 model.analyzeRequirement(
@@ -91,6 +107,7 @@ class DeterministicEngineeringModelTest {
 
         RepositoryContext repository =
                 new RepositoryContext(
+                        ScenarioType.BROWNFIELD,
                         requirement,
                         assessment(),
                         Map.of()
@@ -149,6 +166,7 @@ class DeterministicEngineeringModelTest {
                 )
         );
         RepositoryContext repository = new RepositoryContext(
+                ScenarioType.BROWNFIELD,
                 requirement,
                 assessment(),
                 Map.of()
@@ -164,6 +182,50 @@ class DeterministicEngineeringModelTest {
                         change.content().contains(
                                 "unresolvedRepairDemoSymbol"
                         )
+                );
+    }
+
+    @Test
+    void greenfieldScenarioGeneratesNewApplicationAndTests() {
+        RequirementAnalysis requirement = model.analyzeRequirement(
+                new RequirementContext(
+                        ScenarioType.GREENFIELD,
+                        "Create a URL shortener with create and redirect APIs",
+                        List.of()
+                )
+        );
+        RepositoryContext repository = new RepositoryContext(
+                ScenarioType.GREENFIELD,
+                requirement,
+                assessment(),
+                Map.of("pom.xml", "<project/>")
+        );
+
+        EngineeringPlan plan = model.createPlan(repository);
+        PatchProposal implementation = model.generateImplementation(
+                plan,
+                repository
+        );
+        PatchProposal tests = model.generateTests(
+                plan,
+                implementation,
+                repository
+        );
+
+        assertThat(implementation.summary()).contains("greenfield");
+        assertThat(implementation.changes())
+                .extracting("path")
+                .contains(
+                        "src/main/java/com/prasad/fixture/greenfield/" +
+                                "GreenfieldUrlShortenerApplication.java",
+                        "src/main/java/com/prasad/fixture/greenfield/" +
+                                "ShortUrlController.java"
+                );
+        assertThat(tests.changes())
+                .extracting("path")
+                .contains(
+                        "src/test/java/com/prasad/fixture/greenfield/" +
+                                "ShortUrlServiceTest.java"
                 );
     }
 

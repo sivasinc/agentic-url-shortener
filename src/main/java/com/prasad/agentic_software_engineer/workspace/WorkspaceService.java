@@ -83,6 +83,8 @@ public class WorkspaceService {
                     true
             );
 
+            makeMavenWrapperExecutable(repository);
+
             copyRepository(
                     repository,
                     baseline,
@@ -149,6 +151,17 @@ public class WorkspaceService {
         return fileHashService
                 .manifest(workspace.repository())
                 .equals(workspace.baselineHashes());
+    }
+
+    private void makeMavenWrapperExecutable(Path repository) {
+        Path wrapper = repository.resolve("mvnw");
+        if (Files.isRegularFile(wrapper) &&
+                !Files.isExecutable(wrapper) &&
+                !wrapper.toFile().setExecutable(true, true)) {
+            throw new WorkspaceException(
+                    "Unable to make repository Maven wrapper executable"
+            );
+        }
     }
 
     private Path resolveApprovedSource(
@@ -291,7 +304,8 @@ public class WorkspaceService {
             Files.copy(
                     sourcePath,
                     target,
-                    StandardCopyOption.REPLACE_EXISTING
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.COPY_ATTRIBUTES
             );
         } catch (IOException exception) {
             throw new WorkspaceException(

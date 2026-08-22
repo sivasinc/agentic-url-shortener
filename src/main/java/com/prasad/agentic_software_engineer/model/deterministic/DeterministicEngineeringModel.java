@@ -26,9 +26,15 @@ public class DeterministicEngineeringModel
 
     private final DeterministicAnalyticsPatchFactory
             analyticsPatchFactory;
+    private final DeterministicGreenfieldPatchFactory
+            greenfieldPatchFactory;
 
-    public DeterministicEngineeringModel(DeterministicAnalyticsPatchFactory analyticsPatchFactory) {
+    public DeterministicEngineeringModel(
+            DeterministicAnalyticsPatchFactory analyticsPatchFactory,
+            DeterministicGreenfieldPatchFactory greenfieldPatchFactory
+    ) {
         this.analyticsPatchFactory = analyticsPatchFactory;
+        this.greenfieldPatchFactory = greenfieldPatchFactory;
     }
 
     @Override
@@ -40,7 +46,9 @@ public class DeterministicEngineeringModel
 
         boolean ambiguous =
                 context.clarificationHistory().isEmpty() &&
-                        isAmbiguous(requirement);
+                        (context.scenarioType() ==
+                                com.prasad.agentic_software_engineer.model.ScenarioType.AMBIGUOUS ||
+                                isAmbiguous(requirement));
 
         List<String> ambiguities = ambiguous
                 ? List.of(
@@ -85,22 +93,33 @@ public class DeterministicEngineeringModel
     public EngineeringPlan createPlan(
             RepositoryContext repository
     ) {
+        boolean greenfield = repository.scenarioType() ==
+                com.prasad.agentic_software_engineer.model.ScenarioType.GREENFIELD;
+
         return new EngineeringPlan(
-                "Inspect the repository, implement the requirement, " +
-                        "generate tests, validate the modified workspace, " +
-                        "and document the final outcome.",
+                greenfield
+                        ? "Inspect the build-only seed, establish the application " +
+                        "boundary, generate production and test code, validate the " +
+                        "new application, and document the outcome."
+                        : "Inspect the existing repository, preserve its behavior, " +
+                        "implement the requested change, generate regression tests, " +
+                        "validate the modified workspace, and document the outcome.",
                 List.of(
                         task(
                                 "repository",
                                 "Repository analysis",
-                                "Identify impacted modules, APIs, schemas and tests",
+                                greenfield
+                                        ? "Identify build constraints and confirm that application source is absent"
+                                        : "Identify impacted modules, APIs, schemas and tests",
                                 List.of(),
                                 false
                         ),
                         task(
                                 "implementation",
                                 "Implementation",
-                                "Generate production source changes",
+                                greenfield
+                                        ? "Generate the new application boundary and production source"
+                                        : "Generate production source changes compatible with the repository",
                                 List.of("repository"),
                                 true
                         ),
@@ -130,10 +149,14 @@ public class DeterministicEngineeringModel
                         )
                 ),
                 List.of(
-                        "Generated code may not match repository conventions"
+                        greenfield
+                                ? "A minimal seed provides fewer conventions for the model to infer"
+                                : "Generated code may not match repository conventions"
                 ),
                 List.of(
-                        "A bounded implementation favors reviewability over broad changes"
+                        greenfield
+                                ? "An in-memory implementation favors a fully validated vertical slice over persistence"
+                                : "A bounded implementation favors reviewability over broad changes"
                 )
         );
     }
@@ -143,6 +166,11 @@ public class DeterministicEngineeringModel
             EngineeringPlan plan,
             RepositoryContext repository
     ) {
+        if (repository.scenarioType() ==
+                com.prasad.agentic_software_engineer.model.ScenarioType.GREENFIELD) {
+            return greenfieldPatchFactory.implementation();
+        }
+
         if (repository.requirement()
                 .normalizedRequirement()
                 .toLowerCase(Locale.ROOT)
@@ -161,6 +189,11 @@ public class DeterministicEngineeringModel
             PatchProposal implementation,
             RepositoryContext repository
     ) {
+        if (repository.scenarioType() ==
+                com.prasad.agentic_software_engineer.model.ScenarioType.GREENFIELD) {
+            return greenfieldPatchFactory.tests();
+        }
+
         return analyticsPatchFactory.tests();
     }
 
@@ -171,6 +204,11 @@ public class DeterministicEngineeringModel
             ValidationFailure failure,
             RepositoryContext repository
     ) {
+        if (repository.scenarioType() ==
+                com.prasad.agentic_software_engineer.model.ScenarioType.GREENFIELD) {
+            return greenfieldPatchFactory.completeChange();
+        }
+
         return analyticsPatchFactory
                 .completeRepair();
     }

@@ -342,6 +342,12 @@ public class WorkflowAuditService {
             case VALIDATION -> List.of(
                     AgenticContextKeys.APPLIED_PATCH
             );
+            case DOCUMENTATION -> List.of(
+                    AgenticContextKeys.REQUIREMENT_ANALYSIS,
+                    AgenticContextKeys.ENGINEERING_PLAN,
+                    AgenticContextKeys.APPLIED_PATCH,
+                    AgenticContextKeys.VALIDATION_RESULT
+            );
             default -> List.of();
         };
     }

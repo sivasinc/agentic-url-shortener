@@ -1,0 +1,12 @@
+package com.prasad.fixture.greenfield;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class GreenfieldUrlShortenerApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(GreenfieldUrlShortenerApplication.class, args);
+    }
+}

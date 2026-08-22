@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+target
+agent-workspaces
+scenario-repositories/**/target
+*.iml
+*.log
+.env
+.env.*
+!.env.example
+README.md
+docs

@@ -3,6 +3,7 @@ package com.prasad.agentic_software_engineer.orchestration.service;
 import com.prasad.agentic_software_engineer.audit.AuditEventType;
 import com.prasad.agentic_software_engineer.audit.WorkflowAuditService;
 import com.prasad.agentic_software_engineer.config.AgentModelProperties;
+import com.prasad.agentic_software_engineer.documentation.EngineeringOutcomeArtifact;
 import com.prasad.agentic_software_engineer.model.EngineeringPlan;
 import com.prasad.agentic_software_engineer.model.RequirementAnalysis;
 import com.prasad.agentic_software_engineer.model.RequirementContext;
@@ -435,10 +436,17 @@ public class AgenticWorkflowService
                 GateDefinition.dependenciesSucceeded(),
                 GateDefinition.contextKeys(AgenticContextKeys.VALIDATION_RESULT)
         );
-        WorkflowTask release = task(
+        WorkflowTask documentation = task(
+                "Generate consolidated engineering outcome",
+                TaskType.DOCUMENTATION,
+                Set.of(validation.getId()),
+                GateDefinition.dependenciesSucceeded(),
+                GateDefinition.contextKeys(AgenticContextKeys.ENGINEERING_OUTCOME)
+        );
+        WorkflowTask approval = task(
                 "Approve release readiness",
                 TaskType.RELEASE_READINESS,
-                Set.of(validation.getId()),
+                Set.of(documentation.getId()),
                 GateDefinition.humanApproval(),
                 GateDefinition.none()
         );
@@ -450,7 +458,8 @@ public class AgenticWorkflowService
         workflow.addTask(tests);
         workflow.addTask(patch);
         workflow.addTask(validation);
-        workflow.addTask(release);
+        workflow.addTask(documentation);
+        workflow.addTask(approval);
     }
 
     private WorkflowTask task(
@@ -521,6 +530,11 @@ public class AgenticWorkflowService
                 AgenticContextKeys.APPLIED_PATCH,
                 AppliedPatch.class
         );
+        EngineeringOutcomeArtifact outcome = context(
+                workflow,
+                AgenticContextKeys.ENGINEERING_OUTCOME,
+                EngineeringOutcomeArtifact.class
+        );
 
         List<WorkflowTaskResponse> tasks = workflow.getTasks()
                 .stream()
@@ -545,6 +559,7 @@ public class AgenticWorkflowService
                 plan,
                 patch == null ? List.of() : patch.changedFiles(),
                 patch == null ? null : patch.diff(),
+                outcome,
                 analysis == null ? List.of() : analysis.ambiguities(),
                 tasks,
                 workflow.getFailureMessage()

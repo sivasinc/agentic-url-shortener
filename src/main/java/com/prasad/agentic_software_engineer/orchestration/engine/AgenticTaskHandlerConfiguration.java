@@ -7,6 +7,7 @@ import com.prasad.agentic_software_engineer.agent.repository.RepositoryAssessmen
 import com.prasad.agentic_software_engineer.agent.repository.RepositoryContextAssembler;
 import com.prasad.agentic_software_engineer.agent.requirement.RequirementAgent;
 import com.prasad.agentic_software_engineer.agent.testing.TestingAgent;
+import com.prasad.agentic_software_engineer.documentation.EngineeringOutcomeService;
 import com.prasad.agentic_software_engineer.model.EngineeringPlan;
 import com.prasad.agentic_software_engineer.model.PatchProposal;
 import com.prasad.agentic_software_engineer.model.RepositoryContext;
@@ -19,6 +20,7 @@ import com.prasad.agentic_software_engineer.patch.AppliedPatch;
 import com.prasad.agentic_software_engineer.patch.PatchProposalMerger;
 import com.prasad.agentic_software_engineer.patch.PatchService;
 import com.prasad.agentic_software_engineer.workspace.EngineeringWorkspace;
+import com.prasad.agentic_software_engineer.validation.BuildValidationResult;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -83,6 +85,12 @@ public class AgenticTaskHandlerConfiguration {
                                     RequirementAnalysis.class
                             );
 
+                    RequirementContext requirementContext = require(
+                            workflow,
+                            AgenticContextKeys.REQUIREMENT_CONTEXT,
+                            RequirementContext.class
+                    );
+
                     RepositoryAssessment assessment =
                             repositoryAgent.analyze(
                                     workspace.repository(),
@@ -93,6 +101,7 @@ public class AgenticTaskHandlerConfiguration {
                     RepositoryContext context =
                             assembler.assemble(
                                     workspace.repository(),
+                                    requirementContext.scenarioType(),
                                     requirement,
                                     assessment
                             );
@@ -264,6 +273,82 @@ public class AgenticTaskHandlerConfiguration {
                     return TaskExecutionResult.of(
                             AgenticContextKeys.APPLIED_PATCH,
                             appliedPatch
+                    );
+                }
+        );
+    }
+
+    @Bean
+    WorkflowTaskHandler documentationTaskHandler(
+            EngineeringOutcomeService outcomeService,
+            PatchProposalMerger merger
+    ) {
+        return handler(
+                TaskType.DOCUMENTATION,
+                (workflow, task) -> {
+                    RequirementAnalysis requirement = require(
+                            workflow,
+                            AgenticContextKeys.REQUIREMENT_ANALYSIS,
+                            RequirementAnalysis.class
+                    );
+                    EngineeringPlan plan = require(
+                            workflow,
+                            AgenticContextKeys.ENGINEERING_PLAN,
+                            EngineeringPlan.class
+                    );
+                    RepositoryContext repository = require(
+                            workflow,
+                            AgenticContextKeys.REPOSITORY_CONTEXT,
+                            RepositoryContext.class
+                    );
+                    PatchProposal implementation = require(
+                            workflow,
+                            AgenticContextKeys.IMPLEMENTATION_PATCH,
+                            PatchProposal.class
+                    );
+                    PatchProposal tests = require(
+                            workflow,
+                            AgenticContextKeys.TEST_PATCH,
+                            PatchProposal.class
+                    );
+                    AppliedPatch appliedPatch = require(
+                            workflow,
+                            AgenticContextKeys.APPLIED_PATCH,
+                            AppliedPatch.class
+                    );
+                    BuildValidationResult validation = require(
+                            workflow,
+                            AgenticContextKeys.VALIDATION_RESULT,
+                            BuildValidationResult.class
+                    );
+                    EngineeringWorkspace workspace = require(
+                            workflow,
+                            AgenticContextKeys.WORKSPACE,
+                            EngineeringWorkspace.class
+                    );
+
+                    PatchProposal validatedPatch = workflow.getContext()
+                            .find(AgenticContextKeys.REPAIR_PATCH)
+                            .map(entry -> entry.value())
+                            .filter(PatchProposal.class::isInstance)
+                            .map(PatchProposal.class::cast)
+                            .orElseGet(() -> merger.merge(
+                                    implementation,
+                                    tests
+                            ));
+
+                    return TaskExecutionResult.of(
+                            AgenticContextKeys.ENGINEERING_OUTCOME,
+                            outcomeService.generate(
+                                    workflow.getRevision(),
+                                    requirement,
+                                    plan,
+                                    repository,
+                                    validatedPatch,
+                                    appliedPatch,
+                                    validation,
+                                    workspace
+                            )
                     );
                 }
         );

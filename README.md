@@ -9,7 +9,7 @@ gates.
 
 ## Current status
 
-Implemented through Commit 9:
+Implemented through Commit 10:
 
 - Stateful dependency-graph execution with entry and exit gates
 - Parallel execution of independent tasks
@@ -30,6 +30,9 @@ Implemented through Commit 9:
 - Sanitized JSON evidence artifacts for every structured agent output
 - Prometheus metrics for agent calls, task duration, validation and repair
 - A deterministic failure scenario proving validation-driven repair
+- GitHub Actions verification with enforced JaCoCo coverage
+- Hardened non-root container packaging and health-checked Docker Compose
+- Architecture and reviewer demonstration documentation
 
 The deterministic provider makes the complete demonstration reproducible and
 free in local development and CI. The OpenAI provider exercises the same agent
@@ -104,6 +107,7 @@ The deterministic orchestrator owns the controls around model reasoning:
 - JUnit 5, AssertJ and Mockito
 - Micrometer and Prometheus
 - Docker Compose
+- GitHub Actions and JaCoCo
 
 ## Project structure
 
@@ -125,6 +129,16 @@ scenario-repositories/url-shortener
 `-- runnable brownfield URL-shortener fixture used by the end-to-end scenario
 ```
 
+See [Architecture](docs/ARCHITECTURE.md) for component boundaries, trust
+controls and failure behavior. Reviewers can use the concise
+[Reviewer Guide](docs/REVIEWER-GUIDE.md) to exercise the agentic repair loop.
+The assessment's single summary deliverable is the
+[Consolidated Engineering Outcome](docs/ENGINEERING-OUTCOME.md).
+
+The required greenfield, brownfield and ambiguous executions are documented
+with copy-paste commands and expected evidence in
+[Executable Assessment Scenarios](docs/SCENARIOS.md).
+
 ## Prerequisites
 
 - JDK 21
@@ -145,6 +159,18 @@ The application listens on `http://localhost:8080` by default. Verify it with:
 ```powershell
 Invoke-RestMethod http://localhost:8080/actuator/health
 ```
+
+### Run the complete container stack
+
+```powershell
+docker compose up --build -d
+docker compose ps
+Invoke-RestMethod http://localhost:8080/actuator/health/readiness
+```
+
+The application container runs as a non-root user with a read-only root
+filesystem. Named volumes provide only the writable workspace and Maven cache
+needed to validate generated Java repositories at runtime.
 
 ## Model providers
 
@@ -242,6 +268,8 @@ is rolled back.
 $workflow.changedFiles
 $workflow.diff
 $workflow.engineeringPlan
+$workflow.engineeringOutcome.relativePath
+$workflow.engineeringOutcome.content
 
 Get-ChildItem `
     ".\agent-workspaces\$($workflow.id)\revision-$($workflow.revision)\repository" `
@@ -262,7 +290,7 @@ $ambiguous = Invoke-RestMethod `
     -Uri "http://localhost:8080/api/v1/engineering-workflows" `
     -ContentType "application/json" `
     -Body (@{
-        scenarioType = "BROWNFIELD"
+        scenarioType = "AMBIGUOUS"
         requirement = "Improve analytics"
         repositoryPath = "url-shortener"
     } | ConvertTo-Json)
@@ -405,7 +433,7 @@ RUNNING -> FAILED
 | `MODEL_NAME` | configured model | OpenAI model name |
 | `AGENT_WORKSPACE_ROOT` | `./agent-workspaces` | Isolated runtime workspaces |
 | `AGENT_MAX_ATTEMPTS` | `2` | Maximum validation/repair attempts |
-| `AGENT_COMMAND_TIMEOUT_SECONDS` | `120` | Maven validation timeout |
+| `AGENT_COMMAND_TIMEOUT` | `PT120S` | Maven validation timeout |
 | `DB_URL` | local PostgreSQL URL | JDBC connection |
 | `DB_USERNAME` | `postgres` | Database user |
 | `DB_PASSWORD` | `postgres` | Database password |
@@ -415,20 +443,37 @@ RUNNING -> FAILED
 Run the complete suite:
 
 ```powershell
-.\mvnw.cmd clean test
+.\mvnw.cmd clean verify
 ```
+
+The `verify` lifecycle generates `target/site/jacoco/index.html` and fails when
+aggregate line coverage is below 60%.
 
 Coverage includes workflow state transitions, dependency gates, safe path
 resolution, repository analysis, structured model parsing, deterministic model
 behavior, patch validation/application, rollback, Maven validation, repair and
 URL-shortener fixture behavior. OpenAI tests use a mocked HTTP boundary.
 
-## Scope and remaining work
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on pushes to `main` and pull requests. It:
+
+1. Sets up Temurin Java 21 with Maven dependency caching.
+2. Runs the complete Maven `verify` lifecycle.
+3. Enforces the JaCoCo coverage gate.
+4. Uploads Surefire and JaCoCo reports even after failures.
+5. Builds the production container after tests pass.
+
+CI uses the deterministic provider and never requires a model credential.
+
+## Known production extension
 
 Workflow execution state remains in memory, so a process restart cannot resume
 an active workflow. Audit events and sanitized evidence content are durable in
-PostgreSQL, while workspace artifacts remain on disk. Commit 10 adds CI,
-container packaging, coverage enforcement and final architecture documentation.
+PostgreSQL, while workspace artifacts remain on disk. A horizontally scaled
+production deployment would persist workflow/task state with optimistic locking
+and use leased queue workers. This boundary is explicit and does not affect the
+demonstrated requirement-to-change, validation, repair and governance loop.
 
 ## Commit roadmap
 
