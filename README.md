@@ -9,39 +9,28 @@ model-assisted reasoning.
 
 ## Current status
 
-Implemented through Commit 4:
+Implemented through Commit 5:
 
-- Spring Boot platform bootstrap
-- PostgreSQL and Flyway configuration
-- Explicit workflow dependency graphs
-- Sequential and parallel task execution
-- Entry and exit gates
-- Cross-stage context and task lineage
-- Isolated per-workflow repository copies
-- Baseline snapshots and verified rollback
-- Controlled repository listing, reading and searching
-- Repository architecture and impacted-file discovery
-- Vendor-neutral `EngineeringModel` interface
-- Deterministic engineering model
-- OpenAI Responses API model adapter
-- Strict JSON-schema structured outputs
-- Requirement Agent
-- Repository Analysis Agent
-- Repository Context Assembler
-- Architecture Agent
-- Implementation Agent
-- Testing Agent
-- Repair Agent
-- Documentation Agent
-- Deterministic ambiguity detection
-- Model-output domain validation
-- Real source and test proposals from the deterministic provider
+- Stateful dependency-graph orchestration
+- Isolated and rollback-capable repository workspaces
+- Controlled repository reasoning
+- Deterministic and OpenAI-backed engineering agents
+- Real workflow API
+- Real agent-to-model invocation
+- Structured source and test patch proposals
+- Patch path and size policies
+- Expected file-hash validation
+- Protected-path rejection
+- Safe patch application
+- Source repository protection
+- Reviewable changed-file lists
+- SHA-256 before and after evidence
+- Reviewable diff artifacts
+- Deterministic end-to-end patch generation
+- Optional live OpenAI execution
 
-The platform is now model-aware but does not yet apply generated changes.
-
-Commit 5 connects these agents to safe patch validation and application so
-generated source and tests modify an isolated repository and produce a real
-reviewable diff.
+Maven validation, failure-driven repair, provider fallback and complete recovery
+controls are added in Commit 6.
 
 ## Agentic lifecycle
 
@@ -402,18 +391,17 @@ Run:
 
 ## Current limitations
 
-At Commit 4:
+At Commit 5:
 
-- Workflows remain in memory.
-- No workflow REST API exists.
-- Generated patches are not applied yet.
-- No final unified diff is produced yet.
-- Maven is not run against generated changes.
+- Generated changes are applied but not compiled yet.
+- Maven validation is added in Commit 6.
 - Failure-driven repair is not executed yet.
 - Provider fallback is not implemented yet.
-- Approval and clarification continuation are incomplete.
-- URL-shortener analytics is not implemented yet.
-- Required orchestration reliability metrics are incomplete.
+- Safe stop does not terminate a running build yet.
+- Clarification submission and dynamic replanning are incomplete.
+- URL redirect analytics is implemented through the brownfield scenario in
+  Commit 7.
+- Audit-grade persistence and all required reliability metrics are incomplete.
 
 ## Commit roadmap
 

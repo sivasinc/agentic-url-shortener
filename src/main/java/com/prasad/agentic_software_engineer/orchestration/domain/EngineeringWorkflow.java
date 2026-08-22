@@ -114,6 +114,17 @@ public class EngineeringWorkflow {
         this.startedAt = Objects.requireNonNull(startedAt);
     }
 
+    public synchronized void awaitClarification() {
+        if (status != WorkflowStatus.RUNNING) {
+            throw new IllegalStateException(
+                    "Only a running workflow can await clarification"
+            );
+        }
+
+        this.status =
+                WorkflowStatus.AWAITING_CLARIFICATION;
+    }
+
     public synchronized void awaitApproval() {
         if (status != WorkflowStatus.RUNNING) {
             throw new IllegalStateException(
