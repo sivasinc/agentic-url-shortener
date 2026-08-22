@@ -1,0 +1,125 @@
+package com.prasad.fixture.url_shortener.analytics;
+
+import com.prasad.fixture.url_shortener.url.ShortUrl;
+import com.prasad.fixture.url_shortener.url.ShortUrlService;
+import org.junit.jupiter.api.Test;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class RedirectAnalyticsServiceTest {
+
+    private final RedirectEventRepository repository =
+            mock(RedirectEventRepository.class);
+
+    private final ShortUrlService shortUrlService =
+            mock(ShortUrlService.class);
+
+    private final Clock clock =
+            Clock.fixed(
+                    Instant.parse(
+                            "2026-08-21T12:00:00Z"
+                    ),
+                    ZoneOffset.UTC
+            );
+
+    private final RedirectAnalyticsService service =
+            new RedirectAnalyticsService(
+                    repository,
+                    shortUrlService,
+                    clock
+            );
+
+    @Test
+    void recordsRedirectForExistingShortCode() {
+        existingShortUrl();
+
+        when(repository.save(any(RedirectEvent.class)))
+                .thenAnswer(
+                        invocation ->
+                                invocation.getArgument(0)
+                );
+
+        service.recordRedirect("Ab12Cd34");
+
+        verify(repository)
+                .save(any(RedirectEvent.class));
+    }
+
+    @Test
+    void returnsTotalAndDailyCounts() {
+        existingShortUrl();
+
+        when(
+                repository.countByShortCode(
+                        "Ab12Cd34"
+                )
+        ).thenReturn(3L);
+
+        when(
+                repository
+                        .findAllByShortCodeOrderByOccurredAtAsc(
+                                "Ab12Cd34"
+                        )
+        ).thenReturn(
+                List.of(
+                        event(
+                                "2026-08-20T10:00:00Z"
+                        ),
+                        event(
+                                "2026-08-21T10:00:00Z"
+                        ),
+                        event(
+                                "2026-08-21T11:00:00Z"
+                        )
+                )
+        );
+
+        RedirectAnalyticsResponse response =
+                service.analytics("Ab12Cd34");
+
+        assertThat(response.totalRedirects())
+                .isEqualTo(3);
+
+        assertThat(response.dailyRedirects())
+                .extracting(
+                        RedirectAnalyticsResponse
+                                .DailyRedirectCount::redirects
+                )
+                .containsExactly(1L, 2L);
+    }
+
+    private void existingShortUrl() {
+        when(
+                shortUrlService.resolve(
+                        "Ab12Cd34"
+                )
+        ).thenReturn(
+                new ShortUrl(
+                        UUID.randomUUID(),
+                        "Ab12Cd34",
+                        "https://example.com",
+                        clock.instant()
+                )
+        );
+    }
+
+    private RedirectEvent event(
+            String occurredAt
+    ) {
+        return new RedirectEvent(
+                UUID.randomUUID(),
+                "Ab12Cd34",
+                Instant.parse(occurredAt)
+        );
+    }
+}

@@ -1,0 +1,80 @@
+package com.prasad.fixture.url_shortener.analytics;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+
+@Entity
+@Table(
+        name = "redirect_events",
+        indexes = {
+                @Index(
+                        name = "idx_redirect_event_code_time",
+                        columnList = "short_code, occurred_at"
+                )
+        }
+)
+public class RedirectEvent {
+
+    @Id
+    private UUID id;
+
+    @Column(
+            name = "short_code",
+            nullable = false,
+            length = 12
+    )
+    private String shortCode;
+
+    @Column(
+            name = "occurred_at",
+            nullable = false,
+            updatable = false
+    )
+    private Instant occurredAt;
+
+    protected RedirectEvent() {
+        // Required by JPA.
+    }
+
+    public RedirectEvent(
+            UUID id,
+            String shortCode,
+            Instant occurredAt
+    ) {
+        this.id = Objects.requireNonNull(id);
+        this.shortCode = requireText(shortCode);
+        this.occurredAt =
+                Objects.requireNonNull(occurredAt);
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public String getShortCode() {
+        return shortCode;
+    }
+
+    public Instant getOccurredAt() {
+        return occurredAt;
+    }
+
+    private static String requireText(String value) {
+        Objects.requireNonNull(value);
+
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Short code cannot be blank"
+            );
+        }
+
+        return value.trim();
+    }
+}

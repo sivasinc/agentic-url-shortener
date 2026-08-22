@@ -1,0 +1,107 @@
+package com.prasad.fixture.url_shortener.analytics;
+
+import com.prasad.fixture.url_shortener.url.ShortUrlService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
+public class RedirectAnalyticsService {
+
+    private final RedirectEventRepository repository;
+    private final ShortUrlService shortUrlService;
+    private final Clock clock;
+
+    @Autowired
+    public RedirectAnalyticsService(
+            RedirectEventRepository repository,
+            ShortUrlService shortUrlService
+    ) {
+        this(
+                repository,
+                shortUrlService,
+                Clock.systemUTC()
+        );
+    }
+
+    RedirectAnalyticsService(
+            RedirectEventRepository repository,
+            ShortUrlService shortUrlService,
+            Clock clock
+    ) {
+        this.repository = repository;
+        this.shortUrlService = shortUrlService;
+        this.clock = clock;
+    }
+
+    @Transactional
+    public void recordRedirect(String shortCode) {
+        shortUrlService.resolve(shortCode);
+
+        repository.save(
+                new RedirectEvent(
+                        UUID.randomUUID(),
+                        shortCode,
+                        clock.instant()
+                )
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public RedirectAnalyticsResponse analytics(
+            String shortCode
+    ) {
+        shortUrlService.resolve(shortCode);
+
+        long total =
+                repository.countByShortCode(
+                        shortCode
+                );
+
+        Map<LocalDate, Long> daily =
+                repository
+                        .findAllByShortCodeOrderByOccurredAtAsc(
+                                shortCode
+                        )
+                        .stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        event ->
+                                                event.getOccurredAt()
+                                                        .atZone(
+                                                                ZoneOffset.UTC
+                                                        )
+                                                        .toLocalDate(),
+                                        TreeMap::new,
+                                        Collectors.counting()
+                                )
+                        );
+
+        var dailyResponses =
+                daily.entrySet()
+                        .stream()
+                        .map(
+                                entry ->
+                                        new RedirectAnalyticsResponse
+                                                .DailyRedirectCount(
+                                                entry.getKey(),
+                                                entry.getValue()
+                                        )
+                        )
+                        .toList();
+
+        return new RedirectAnalyticsResponse(
+                shortCode,
+                total,
+                dailyResponses
+        );
+    }
+}

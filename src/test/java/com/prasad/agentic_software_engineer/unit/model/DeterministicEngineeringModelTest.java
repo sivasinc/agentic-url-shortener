@@ -19,7 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DeterministicEngineeringModelTest {
 
     private final DeterministicEngineeringModel model =
-            new DeterministicEngineeringModel();
+            new DeterministicEngineeringModel(
+                    new com.prasad.agentic_software_engineer
+                            .model.deterministic
+                            .DeterministicAnalyticsPatchFactory()
+            );
 
     @Test
     void identifiesAmbiguousRequirement() {

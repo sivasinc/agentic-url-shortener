@@ -4,9 +4,7 @@ import com.prasad.agentic_software_engineer.model.DocumentationProposal;
 import com.prasad.agentic_software_engineer.model.EngineeringModel;
 import com.prasad.agentic_software_engineer.model.EngineeringPlan;
 import com.prasad.agentic_software_engineer.model.EngineeringTaskPlan;
-import com.prasad.agentic_software_engineer.model.FileChangeType;
 import com.prasad.agentic_software_engineer.model.PatchProposal;
-import com.prasad.agentic_software_engineer.model.ProposedFileChange;
 import com.prasad.agentic_software_engineer.model.RepositoryContext;
 import com.prasad.agentic_software_engineer.model.RequirementAnalysis;
 import com.prasad.agentic_software_engineer.model.RequirementContext;
@@ -25,6 +23,13 @@ import java.util.Locale;
 )
 public class DeterministicEngineeringModel
         implements EngineeringModel {
+
+    private final DeterministicAnalyticsPatchFactory
+            analyticsPatchFactory;
+
+    public DeterministicEngineeringModel(DeterministicAnalyticsPatchFactory analyticsPatchFactory) {
+        this.analyticsPatchFactory = analyticsPatchFactory;
+    }
 
     @Override
     public RequirementAnalysis analyzeRequirement(
@@ -128,36 +133,8 @@ public class DeterministicEngineeringModel
             EngineeringPlan plan,
             RepositoryContext repository
     ) {
-        return new PatchProposal(
-                "Generate a concrete production source change",
-                List.of(
-                        new ProposedFileChange(
-                                FileChangeType.CREATE,
-                                "src/main/java/generated/AgentGeneratedChange.java",
-                                null,
-                                """
-                                package generated;
-
-                                public final class AgentGeneratedChange {
-
-                                    private AgentGeneratedChange() {
-                                    }
-
-                                    public static String status() {
-                                        return "implemented";
-                                    }
-                                }
-                                """,
-                                "Creates a real compilable source artifact"
-                        )
-                ),
-                List.of(
-                        "The fixture repository compiles Java sources under src/main/java"
-                ),
-                List.of(
-                        "The generated package is intentionally isolated"
-                )
-        );
+        return analyticsPatchFactory
+                .implementation();
     }
 
     @Override
@@ -166,40 +143,7 @@ public class DeterministicEngineeringModel
             PatchProposal implementation,
             RepositoryContext repository
     ) {
-        return new PatchProposal(
-                "Generate a test for the production change",
-                List.of(
-                        new ProposedFileChange(
-                                FileChangeType.CREATE,
-                                "src/test/java/generated/AgentGeneratedChangeTest.java",
-                                null,
-                                """
-                                package generated;
-
-                                import org.junit.jupiter.api.Test;
-
-                                import static org.assertj.core.api.Assertions.assertThat;
-
-                                class AgentGeneratedChangeTest {
-
-                                    @Test
-                                    void reportsImplementedStatus() {
-                                        assertThat(
-                                                AgentGeneratedChange.status()
-                                        ).isEqualTo("implemented");
-                                    }
-                                }
-                                """,
-                                "Validates the generated production behavior"
-                        )
-                ),
-                List.of(
-                        "The fixture uses JUnit and AssertJ"
-                ),
-                List.of(
-                        "Test dependencies must already be available"
-                )
-        );
+        return analyticsPatchFactory.tests();
     }
 
     @Override
@@ -209,59 +153,8 @@ public class DeterministicEngineeringModel
             ValidationFailure failure,
             RepositoryContext repository
     ) {
-        return new PatchProposal(
-                "Repair the generated implementation and tests",
-                List.of(
-                        new ProposedFileChange(
-                                FileChangeType.CREATE,
-                                "src/main/java/generated/AgentGeneratedChange.java",
-                                null,
-                                """
-                                package generated;
-    
-                                public final class AgentGeneratedChange {
-    
-                                    private AgentGeneratedChange() {
-                                    }
-    
-                                    public static String status() {
-                                        return "implemented";
-                                    }
-                                }
-                                """,
-                                "Creates corrected compilable production code"
-                        ),
-                        new ProposedFileChange(
-                                FileChangeType.CREATE,
-                                "src/test/java/generated/AgentGeneratedChangeTest.java",
-                                null,
-                                """
-                                package generated;
-    
-                                import org.junit.jupiter.api.Test;
-    
-                                import static org.assertj.core.api.Assertions.assertThat;
-    
-                                class AgentGeneratedChangeTest {
-    
-                                    @Test
-                                    void reportsImplementedStatus() {
-                                        assertThat(
-                                                AgentGeneratedChange.status()
-                                        ).isEqualTo("implemented");
-                                    }
-                                }
-                                """,
-                                "Restores the complete test operation after rollback"
-                        )
-                ),
-                List.of(
-                        "The fixture repository uses Maven, JUnit and AssertJ"
-                ),
-                List.of(
-                        "A non-fixture failure may require model or human review"
-                )
-        );
+        return analyticsPatchFactory
+                .completeRepair();
     }
 
     @Override

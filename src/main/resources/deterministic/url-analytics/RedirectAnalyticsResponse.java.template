@@ -1,0 +1,22 @@
+package com.prasad.fixture.url_shortener.analytics;
+
+import java.time.LocalDate;
+import java.util.List;
+
+public record RedirectAnalyticsResponse(
+        String shortCode,
+        long totalRedirects,
+        List<DailyRedirectCount> dailyRedirects
+) {
+
+    public RedirectAnalyticsResponse {
+        dailyRedirects =
+                List.copyOf(dailyRedirects);
+    }
+
+    public record DailyRedirectCount(
+            LocalDate date,
+            long redirects
+    ) {
+    }
+}
